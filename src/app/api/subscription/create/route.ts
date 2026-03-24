@@ -2,11 +2,13 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-01-27-acacia' as any,
-})
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-01-27-acacia' as any,
+  })
+  
   try {
     const supabase = await createClient()
     const { planType } = await request.json() // 'monthly' or 'yearly'

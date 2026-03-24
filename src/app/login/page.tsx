@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GolfAnimation } from '@/components/auth/GolfAnimation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Mail, Lock, ArrowRight, Github } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const [showForm, setShowForm] = useState(false)
@@ -83,11 +83,9 @@ export default function LoginPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-12">
-                    <Github className="w-5 h-5 mr-2" />
                     GitHub
                   </Button>
                   <Button variant="outline" className="h-12">
-                    <Mail className="w-5 h-5 mr-2" />
                     Google
                   </Button>
                 </div>

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, Heart, ArrowRight, ShieldCheck, Star } from 'lucide-react'
+import { Search, Filter, Heart, ArrowRight, ShieldCheck, Star, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import Link from 'next/link'

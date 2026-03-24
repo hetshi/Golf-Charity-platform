@@ -3,17 +3,19 @@ import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-01-27-acacia' as any,
-})
-
-// Use service role key since webhooks are server-to-server and need to bypass RLS
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-01-27-acacia' as any,
+  })
+
+  // Use service role key since webhooks are server-to-server and need to bypass RLS
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   const body = await request.text()
   const sig = (await headers()).get('stripe-signature')!
 
