@@ -38,6 +38,6 @@ See `.env.example` for required keys.
 ---
 
 ## Technical Details
--   **Auth Middleware**: Route protection is handled in `src/middleware.ts` using `@supabase/ssr`.
+-   **Auth Proxy**: Route protection is handled in `src/proxy.ts` using `@supabase/ssr`.
 -   **FIFO Algorithm**: Implementation found in `src/app/api/scores/add/route.ts`.
 -   **Draw Engine**: Logic located in `src/app/api/draw/run/route.ts`.
