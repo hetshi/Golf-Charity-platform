@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, ShieldCheck, Zap, Star, LayoutGrid, Calendar, HelpCircle } from 'lucide-react'
+import { Check, ShieldCheck, Zap, Star, LayoutGrid, Calendar, HelpCircle, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
 const PLANS = [
   {
@@ -39,6 +41,24 @@ const PLANS = [
 
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null)
+  const [currentSub, setCurrentSub] = useState<any>(null)
+  const [fetching, setFetching] = useState(true)
+
+  useEffect(() => {
+    async function fetchStatus() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        setCurrentSub(sub)
+      }
+      setFetching(false)
+    }
+    fetchStatus()
+  }, [])
 
   const handleSubscribe = async (planId: string) => {
     setLoading(planId)
@@ -66,6 +86,13 @@ export default function PricingPage() {
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[100px] rounded-full -z-10 -translate-x-1/2 translate-y-1/2" />
 
       <div className="max-w-7xl mx-auto flex flex-col items-center">
+        <div className="w-full max-w-4xl flex justify-start mb-12">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group italic font-bold">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Dashboard
+          </Link>
+        </div>
+
         <header className="text-center mb-20 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -125,12 +152,18 @@ export default function PricingPage() {
 
                 <Button 
                   onClick={() => handleSubscribe(plan.id)}
-                  disabled={loading !== null}
+                  disabled={loading !== null || (currentSub?.plan_type === plan.id && currentSub?.status === 'active')}
                   className={`w-full h-16 rounded-[1.5rem] font-black italic text-lg shadow-2xl ${
                     plan.highlight ? 'bg-emerald-500 text-zinc-950' : 'bg-white text-zinc-950 hover:bg-zinc-200'
+                  } ${
+                    (currentSub?.plan_type === plan.id && currentSub?.status === 'active') ? 'opacity-50 cursor-default grayscale' : ''
                   }`}
                 >
-                  {loading === plan.id ? 'Connecting...' : `Activate ${plan.id}`}
+                  {loading === plan.id ? 'Connecting...' : (
+                    (currentSub?.plan_type === plan.id && currentSub?.status === 'active') 
+                    ? 'Current Plan' 
+                    : `Activate ${plan.name}`
+                  )}
                 </Button>
              </motion.div>
           ))}

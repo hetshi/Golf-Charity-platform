@@ -52,7 +52,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
       <AnimatePresence mode="wait">
         {!showForm ? (
           <GolfAnimation onComplete={() => setShowForm(true)} />
@@ -144,7 +144,6 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </div>
-            </div>
 
             {/* Footer */}
             <p className="text-center mt-8 text-zinc-600 text-xs italic px-8">
@@ -154,6 +153,6 @@ export default function LoginPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+    </div>
   )
 }

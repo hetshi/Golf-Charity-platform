@@ -1,59 +1,74 @@
-'use client'
-
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Filter, Heart, ArrowRight, ShieldCheck, Star, TrendingUp } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Filter, Heart, ArrowRight, ShieldCheck, Star, TrendingUp, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import Link from 'next/link'
-
-const CHARITIES = [
-  {
-    id: '1',
-    name: 'OceanGuard Active',
-    description: 'Protecting marine ecosystems through innovative plastic removal technology and reef restoration.',
-    image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800&auto=format&fit=crop',
-    category: 'Environment',
-    featured: true,
-    impact: '10kg plastic removed/score'
-  },
-  {
-    id: '2',
-    name: 'WaterNow Global',
-    description: 'Providing sustainable clean water solutions to rural communities across Sub-Saharan Africa.',
-    image: 'https://images.unsplash.com/photo-1541252260733-5433d3e34dd0?q=80&w=800&auto=format&fit=crop',
-    category: 'Health',
-    impact: '500L clean water/month'
-  },
-  {
-    id: '3',
-    name: 'EduPath Foundation',
-    description: 'Empowering children in underfunded districts with high-tech learning resources and mentorship.',
-    image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop',
-    category: 'Education',
-    impact: '1 child sponsored/draw'
-  },
-  {
-    id: '4',
-    name: 'GreenEarth Reforest',
-    description: 'Collaborating with local farmers to restore biodiversity through large-scale tree planting.',
-    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=800&auto=format&fit=crop',
-    category: 'Environment',
-    impact: '5 trees planted/entry'
-  }
-]
+import { supabase } from '@/lib/supabase'
 
 export default function CharityDirectoryPage() {
+  const [charities, setCharities] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [loading, setLoading] = useState(true)
+  const [selectedCharityId, setSelectedCharityId] = useState<string | null>(null)
+  const [processing, setProcessing] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchCharities() {
+      const { data, error } = await supabase
+        .from('charities')
+        .select('*')
+        .order('featured', { ascending: false })
+      
+      if (data) setCharities(data)
+      
+      // Fetch user's current choice
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: uc } = await supabase
+          .from('user_charity')
+          .select('charity_id')
+          .eq('user_id', user.id)
+          .single()
+        if (uc) setSelectedCharityId(uc.charity_id)
+      }
+      
+      setLoading(false)
+    }
+    fetchCharities()
+  }, [])
 
   const categories = ['All', 'Environment', 'Health', 'Education', 'Animal Welfare']
 
-  const filteredCharities = CHARITIES.filter(charity => {
+  const filteredCharities = charities.filter(charity => {
     const matchesSearch = charity.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'All' || charity.category === selectedCategory
     return matchesSearch && matchesCategory
   })
+
+  const handleSelect = async (charityId: string) => {
+    setProcessing(charityId)
+    try {
+      const res = await fetch('/api/charities/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ charityId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSelectedCharityId(charityId)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  if (loading) {
+     return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 italic">LOADING CHARITIES...</div>
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-20">
@@ -125,20 +140,28 @@ export default function CharityDirectoryPage() {
             >
               <div className="relative h-64 overflow-hidden">
                 <img 
-                  src={charity.image} 
+                  src={charity.image_url || 'https://images.unsplash.com/photo-1469571483398-84358bb003bd?q=80&w=800&auto=format&fit=crop'} 
                   alt={charity.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
+                
+                {selectedCharityId === charity.id && (
+                  <div className="absolute top-6 left-6 px-3 py-1 bg-emerald-500/90 backdrop-blur-md text-zinc-950 text-[10px] font-black rounded-lg shadow-xl uppercase italic flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Currently Supporting
+                  </div>
+                )}
+
                 {charity.featured && (
-                  <div className="absolute top-6 right-6 px-3 py-1 bg-emerald-500 text-zinc-950 text-[10px] font-black rounded-lg shadow-xl uppercase italic flex items-center gap-1">
+                  <div className="absolute top-6 right-6 px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[10px] font-black rounded-lg shadow-xl uppercase italic flex items-center gap-1 border border-white/10">
                     <Star className="w-3 h-3 fill-current" />
                     Featured
                   </div>
                 )}
                 <div className="absolute bottom-6 left-6">
                   <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic mb-1">
-                    {charity.category}
+                    {charity.category || 'Humanitarian'}
                   </div>
                   <h3 className="text-2xl font-black italic text-white leading-tight">
                     {charity.name}
@@ -163,14 +186,20 @@ export default function CharityDirectoryPage() {
                   </div>
                 </div>
 
-                <Link href={`/charities/${charity.id}`} className="w-full">
-                  <Button className="w-full h-14 rounded-2xl group/btn overflow-hidden">
-                    <span className="relative z-10 flex items-center justify-center gap-2">
-                      Select for Support
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </span>
-                  </Button>
-                </Link>
+                <Button 
+                  onClick={() => handleSelect(charity.id)}
+                  disabled={processing !== null || selectedCharityId === charity.id}
+                  className={`w-full h-14 rounded-2xl group/btn overflow-hidden ${
+                    selectedCharityId === charity.id 
+                    ? 'bg-zinc-800 text-zinc-500 cursor-default hover:bg-zinc-800 shadow-none border border-zinc-700' 
+                    : 'bg-emerald-500 text-zinc-950'
+                  }`}
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {processing === charity.id ? 'Connecting...' : (selectedCharityId === charity.id ? 'Active Selection' : 'Select for Support')}
+                    {selectedCharityId !== charity.id && <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />}
+                  </span>
+                </Button>
               </div>
             </motion.div>
           ))}

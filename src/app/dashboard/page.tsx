@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Trophy, 
@@ -16,8 +16,65 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null)
+  const [subscription, setSubscription] = useState<any>(null)
+  const [scores, setScores] = useState<any[]>([])
+  const [charity, setCharity] = useState<any>(null)
+  const [totalWinnings, setTotalWinnings] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser(user)
+
+        // Fetch subscription
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        setSubscription(sub)
+
+        // Fetch scores
+        const { data: scs } = await supabase
+          .from('scores')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(5)
+        setScores(scs || [])
+
+        // Fetch charity impact
+        const { data: uc } = await supabase
+          .from('user_charity')
+          .select('*, charities(*)')
+          .eq('user_id', user.id)
+          .single()
+        setCharity(uc)
+
+        // Fetch total winnings
+        const { data: wr } = await supabase
+          .from('draw_results')
+          .select('prize_amount')
+          .eq('user_id', user.id)
+        const total = wr?.reduce((sum, r) => sum + (Number(r.prize_amount) || 0), 0) || 0
+        setTotalWinnings(total)
+      }
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 italic">SYNCING PLAYER DATA...</div>
+  }
+
+  const avgScore = scores.length > 0 ? (scores.reduce((sum, s) => sum + s.score, 0) / scores.length).toFixed(1) : '0.0'
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 md:p-10 pb-24">
       {/* Header */}
@@ -34,11 +91,11 @@ export default function DashboardPage() {
         
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold">John Doe</p>
-            <p className="text-xs text-emerald-400">Pro Subscriber</p>
+            <p className="text-sm font-bold">{user?.email?.split('@')[0] || 'Player'}</p>
+            <p className="text-xs text-emerald-400">{subscription?.status === 'active' ? 'Pro Subscriber' : 'Visitor'}</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden">
-            <img src="https://i.pravatar.cc/100?img=12" alt="Avatar" />
+          <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden flex items-center justify-center">
+            {user?.email?.charAt(0).toUpperCase()}
           </div>
         </div>
       </header>
@@ -53,26 +110,35 @@ export default function DashboardPage() {
             </div>
             <h2 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4 italic">Membership</h2>
             <div className="flex items-end gap-2 mb-6">
-              <div className="text-4xl font-black text-white italic">ACTIVE</div>
-              <div className="text-emerald-400 pb-1 font-bold">PRO</div>
+              <div className="text-4xl font-black text-white italic">{subscription?.status?.toUpperCase() || 'INACTIVE'}</div>
+              {subscription?.plan_type && <div className="text-emerald-400 pb-1 font-bold">{subscription.plan_type.toUpperCase()}</div>}
             </div>
-            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">Your monthly contribution of 15% is supporting <span className="text-white italic">WaterNow Global.</span></p>
-            <Button variant="secondary" className="w-full bg-zinc-800 border-none hover:bg-zinc-700">
-              Manage Billing
-            </Button>
+            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+              {charity ? (
+                <>Your monthly contribution of {charity.contribution_percent}% is supporting <span className="text-white italic">{charity.charities?.name}.</span></>
+              ) : (
+                'Pick a charity to start making an impact with your monthly entries.'
+              )}
+            </p>
+            <Link href="/dashboard/subscription" className="block">
+              <Button variant="secondary" className="w-full bg-zinc-800 border-none hover:bg-zinc-700">
+                Manage Billing
+              </Button>
+            </Link>
           </div>
 
-          {/* Quick Score Entry Card */}
-          <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 rounded-[2rem] shadow-2xl shadow-emerald-500/10 group cursor-pointer">
-            <div className="flex items-center justify-between mb-8">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                <Plus className="w-6 h-6 text-white" />
+            <Link href="/dashboard/scores">
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 rounded-[2rem] shadow-2xl shadow-emerald-500/10 group cursor-pointer h-full">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                    <Plus className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowUpRight className="w-6 h-6 text-white/40 group-hover:text-white transition-colors" />
+                </div>
+                <h3 className="text-2xl font-black italic mb-2">ADD NEW SCORE</h3>
+                <p className="text-white/70 text-sm">Keep your last 5 scores updated to qualify for the next draw.</p>
               </div>
-              <ArrowUpRight className="w-6 h-6 text-white/40 group-hover:text-white transition-colors" />
-            </div>
-            <h3 className="text-2xl font-black italic mb-2">ADD NEW SCORE</h3>
-            <p className="text-white/70 text-sm">Keep your last 5 scores updated to qualify for the next draw.</p>
-          </div>
+            </Link>
         </div>
 
         {/* Middle/Main Column - Stats & History */}
@@ -81,24 +147,23 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-3xl">
               <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2 italic">Avg Score</div>
-              <div className="text-3xl font-black">34.2</div>
-              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold mt-1 uppercase">
-                <TrendingUp className="w-3 h-3" />
-                +2.1 this month
+              <div className="text-3xl font-black">{avgScore}</div>
+              <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold mt-1 uppercase italic">
+                From last {scores.length} games
               </div>
             </div>
             <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-3xl">
               <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2 italic">Total Winnings</div>
-              <div className="text-3xl font-black">$420.00</div>
+              <div className="text-3xl font-black">${totalWinnings.toFixed(2)}</div>
               <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold mt-1 uppercase italic">
                 All time earnings
               </div>
             </div>
             <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-3xl">
               <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2 italic">Charity Rank</div>
-              <div className="text-3xl font-black italic">TOP 5%</div>
+              <div className="text-3xl font-black italic">{charity ? 'TOP 5%' : 'N/A'}</div>
               <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold mt-1 uppercase italic">
-                Elite Contributor
+                {charity ? 'Elite Contributor' : 'No Impact Yet'}
               </div>
             </div>
           </div>
@@ -111,22 +176,23 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2 py-1 rounded">LAST 5 ONLY</span>
               </div>
               <div className="space-y-4 flex-1">
-                {[38, 32, 35, 31, 33].map((score, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 group hover:border-emerald-500/30 transition-colors">
+                {scores.length > 0 ? scores.map((score, i) => (
+                  <div key={score.id} className="flex items-center justify-between p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 group hover:border-emerald-500/30 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 font-bold text-xs">
-                        #{5-i}
+                        #{scores.length-i}
                       </div>
                       <div>
-                        <div className="text-sm font-bold">{score} Stableford</div>
-                        <div className="text-[10px] text-zinc-500 font-medium italic">March {24-i}, 2026</div>
+                        <div className="text-sm font-bold">{score.score} Stableford</div>
+                        <div className="text-[10px] text-zinc-500 font-medium italic">
+                          {new Date(score.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <History className="w-4 h-4" />
-                    </Button>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-10 text-zinc-600 text-sm italic">No scores yet. Add your first score to start!</div>
+                )}
               </div>
             </div>
 
